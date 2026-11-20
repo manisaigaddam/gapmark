@@ -89,3 +89,14 @@ export const workbench = `
     </section>
     <footer><span>Gapmark</span><div><a href="/api/agent">Agent API</a><a href="/api/agent/openapi">OpenAPI specification</a></div></footer>
   </main>`;
+
+export function operationWorkbench(mode) {
+  const sections = workbench.slice(workbench.indexOf('    <section id="analyze"'), workbench.indexOf('    <section class="handoff'));
+  const shared = sections
+    .replace('<button type="button" id="try-verify" hidden>Verify this proof</button>', '<button type="button" id="try-verify" hidden>Verify this proof</button><button type="button" id="save-issued" hidden>Save to workspace</button>')
+    .replace('id="proof-state" class="note" role="status"></p>', 'id="proof-state" class="note" role="status"></p><p id="issued-save-state" class="note" role="status"></p><a id="issued-workspace-link" class="workspace-inline" href="/workspace" target="_blank" rel="noopener" hidden>Open workspace</a>')
+    .replace('id="review-source"></p></div>', 'id="review-source"></p></div><div class="review-save"><button id="save-reviewed" type="button">Save to workspace</button><p id="reviewed-save-state" class="note" role="status"></p><a id="reviewed-workspace-link" class="workspace-inline" href="/workspace" target="_blank" rel="noopener" hidden>Open workspace</a></div>');
+  return mode === 'review'
+    ? shared.replace(/(<section id="analyze"[^>]*)(>)/, '$1 hidden$2').replace(/(<section id="verify"[^>]*) hidden>/, '$1>')
+    : shared;
+}

@@ -93,3 +93,14 @@ Set `KURIER_API_KEY` to your [Kurier testnet key](https://testnet.kurier.xyz/) o
 For a public proof, POST `{"action":"verify-proof","bundle":{...}}`. Supply `trustedMonitorKey` only if you have an independently trusted Ed25519 SPKI public key in base64url. No model is required because the supported actions and verdicts are deterministic. The API has no Agent Games signed request adapter.
 
 Before deployment, run `npm.cmd run build` with the proof artifacts in place. Vercel can deploy the folder with its [official CLI](https://vercel.com/docs/cli) or import a Git repository. A database is unnecessary for this version. Use the same deployment’s `/api/agent` route for the public API. To reproduce the setup from another checkout, keep its audited proof artifacts and generate a package lock on the first successful install.
+
+## Report workspace with Supabase
+
+The browser can create and verify proofs before you connect Supabase. To enable accounts, private history and sharing:
+
+1. Create a hosted Supabase project. Run `supabase/migrations/202611200001_report_workspace.sql` in its SQL Editor once.
+2. Enable Email sign-in, sign-ups and email confirmation. In Authentication → Email Templates, use `<p>Your Gapmark sign-in code is {{ .Token }}</p>` for both **Magic Link** and **Confirm signup**. Configure custom SMTP before opening sign-in to people outside your Supabase project team.
+3. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `.env` for local development and in Vercel for deployment. Get both from your Supabase project’s Connect dialog. Restart or redeploy. Gapmark checks the signed-in user and applies row-level security with their access token.
+4. Sign in at `/workspace`, generate a proof at `/create`, and save it. In **Issued**, grant access to a second email and copy the report link. Use the second email in a separate browser profile to open and verify the proof. Revoke access and confirm the original link becomes unavailable to that account. A downloaded proof or separate saved copy remains portable.
+
+The workspace saves proof bundles and report summaries. Monitoring CSV stays in the browser during the website workflow. zkVerify testnet submission uses `KURIER_API_KEY` separately and is optional for proof creation, verification and saving.

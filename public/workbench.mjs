@@ -18,6 +18,92 @@ let networkJob;
 let networkBusy = false;
 const networkTerminal = new Set(['Finalized', 'Failed', 'Rejected', 'Error']);
 
+const operationMode = document.querySelector('[data-proof-studio]')?.dataset.proofStudio;
+const sessionProofKey = 'gapmark-review-proof';
+let reviewedBundle;
+
+function clearWorkspaceMessage(kind) {
+  const state = element(kind + '-save-state');
+  if (!state) return;
+  state.textContent = '';
+  element(kind + '-workspace-link').hidden = true;
+}
+
+async function saveToWorkspace(kind, bundle, button) {
+  if (!bundle) return;
+  const state = element(kind + '-save-state');
+  const link = element(kind + '-workspace-link');
+  const current = () => (kind === 'issued' ? proofBundle : reviewedBundle) === bundle;
+  button.disabled = true;
+  link.hidden = true;
+  state.textContent = 'Saving the verified proof.';
+  try {
+    const response = await fetch('/api/workspace', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'save', kind, bundle }), signal: AbortSignal.timeout(25000)
+    });
+    const result = await response.json();
+    if (!current()) return;
+    if (!response.ok) {
+      link.hidden = response.status !== 401;
+      throw new Error(response.status === 401 ? 'Sign in in a new tab, then return here to save this proof.' : result.error);
+    }
+    state.textContent = 'Saved to your workspace.';
+    link.hidden = false;
+  } catch (error) {
+    if (current()) state.textContent = error.message || 'The proof could not be saved.';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function loadReviewBundle(bundle, filename) {
+  assertProofBundle(bundle);
+  uploadRevision++;
+  reviewRevision++;
+  uploadedBundle = bundle;
+  element('proof-filename').textContent = filename;
+  element('verify-state').textContent = 'Select Verify proof to check this report.';
+  clearReview();
+  updateVerify();
+}
+
+async function openReviewSource() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('local') === '1') {
+    try {
+      const text = sessionStorage.getItem(sessionProofKey);
+      sessionStorage.removeItem(sessionProofKey);
+      if (text) loadReviewBundle(JSON.parse(text), 'Proof from this session');
+      else element('verify-state').textContent = 'Upload your downloaded JSON to reopen this proof.';
+    } catch {
+      element('verify-state').textContent = 'Upload the downloaded JSON to verify this proof.';
+    }
+    return;
+  }
+  const id = params.get('report');
+  if (!id) return;
+  const attempt = uploadRevision;
+  element('verify-state').textContent = 'Opening saved report.';
+  try {
+    const response = await fetch('/api/workspace?report=' + encodeURIComponent(id), { cache: 'no-store', signal: AbortSignal.timeout(14000) });
+    const result = await response.json();
+    if (attempt !== uploadRevision) return;
+    if (response.status === 401) {
+      const signIn = document.createElement('a');
+      signIn.href = '/workspace?report=' + encodeURIComponent(id);
+      signIn.textContent = 'Sign in to open the shared report';
+      element('verify-state').replaceChildren(signIn);
+      return;
+    }
+    if (!response.ok) throw new Error(result.error);
+    loadReviewBundle(result.report.bundle, 'Saved report');
+  } catch (error) {
+    if (attempt === uploadRevision) element('verify-state').textContent = error.message;
+  }
+}
+
+
 function sampleCsv(kind) {
   const rows = ['timestamp,status'];
   for (let index = 0; index < 12; index++) {
@@ -65,6 +151,7 @@ function proofState(text = '') {
   element('generate').disabled = !artifactsAvailable || !report || Boolean(running);
   element('download-proof').hidden = !proofBundle;
   element('try-verify').hidden = !proofBundle;
+  if (element('save-issued')) element('save-issued').hidden = !proofBundle;
   element('retry-proof-assets').hidden = !assetError || checkingAssets;
   element('proof-state').textContent = text || (artifactsAvailable
     ? 'Proof generation runs on this device. The CSV stays in this browser.'
@@ -83,6 +170,7 @@ function updateNetworkControls() {
 }
 
 function resetNetworkProof() {
+  clearWorkspaceMessage('issued');
   networkJob = undefined;
   element('network-state').textContent = '';
 }
@@ -315,6 +403,8 @@ element('network-refresh').addEventListener('click', () => runNetwork('status'))
 
 function updateVerify() { element('verify-proof').disabled = !artifactsAvailable || !uploadedBundle || Boolean(running); }
 function clearReview() {
+  reviewedBundle = undefined;
+  clearWorkspaceMessage('reviewed');
   element('review-results').hidden = true;
   element('review-caption').textContent = 'Upload and verify a proof to see what it establishes.';
 }
@@ -326,6 +416,13 @@ element('verify-form').addEventListener('input', ({ target }) => {
 });
 element('try-verify').addEventListener('click', () => {
   if (!proofBundle) return;
+  if (operationMode === 'create') {
+    try {
+      sessionStorage.setItem(sessionProofKey, JSON.stringify(proofBundle));
+      location.assign('/review?local=1');
+      return;
+    } catch { /* Keep in-page verification available if storage is blocked. */ }
+  }
   uploadRevision++;
   reviewRevision++;
   uploadedBundle = proofBundle;
@@ -395,6 +492,7 @@ element('verify-form').addEventListener('submit', async (event) => {
       element('review-verdict').textContent = `${labels[publicReport.verdict]}. ${up} up, ${down} down, ${missing} missing.`;
       element('review-terms').textContent = termsMessage;
       element('review-source').textContent = origin;
+      reviewedBundle = bundle;
       element('review-results').hidden = false;
     }
   } catch (error) { if (bundle === uploadedBundle && attempt === reviewRevision) element('verify-state').textContent = error.message; }
@@ -431,7 +529,13 @@ async function checkProofAssets() {
 }
 
 element('retry-proof-assets').addEventListener('click', checkProofAssets);
+element('save-issued')?.addEventListener('click', (event) => saveToWorkspace('issued', proofBundle, event.currentTarget));
+element('save-reviewed')?.addEventListener('click', (event) => saveToWorkspace('reviewed', reviewedBundle, event.currentTarget));
 loadSample('missing');
+if (operationMode === 'review') {
+  showWorkflow('verify');
+  void openReviewSource();
+}
 void checkProofAssets();
 void fetchFresh('/api/zkverify').then(async (response) => {
   networkEnabled = response.ok && (await response.json()).enabled === true;

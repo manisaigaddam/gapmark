@@ -3,7 +3,8 @@ const nextConfig = {
   serverExternalPackages: ['snarkjs'],
   outputFileTracingIncludes: {
     '/api/agent': ['./public/zk/verification_key.json'],
-    '/api/zkverify': ['./public/zk/verification_key.json']
+    '/api/zkverify': ['./public/zk/verification_key.json'],
+    '/api/workspace': ['./public/zk/verification_key.json']
   },
   async headers() {
     return [{ source: '/:path*', headers: [
