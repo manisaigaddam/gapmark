@@ -126,6 +126,11 @@ textarea { min-height: 143px; resize: vertical; font: .88rem/1.5 ui-monospace, C
 .monitor-guide { margin: 9px 0 0; }
 .monitor-guide label { margin-top: 8px; }
 #network-state { overflow-wrap: anywhere; white-space: pre-line; }
+.transaction-details { margin-top: 10px; padding: 10px 12px; border: 1px solid #b9d8cb; border-radius: 7px; background: #e9f6ef; }
+.transaction-details code { display: block; margin-top: 3px; overflow-wrap: anywhere; }
+.transaction-details .actions { margin-top: 8px; gap: 8px 14px; }
+.transaction-details a { color: #124d3d; font-weight: 700; text-underline-offset: 4px; }
+.transaction-details [role=status]:not(:empty) { margin-top: 6px; }
 footer { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: space-between; padding: 18px 0 23px; color: var(--muted); font-size: .875rem; }
 
 footer div { display: flex; flex-wrap: wrap; gap: 6px 14px; }

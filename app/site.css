@@ -109,6 +109,8 @@
 .account-panel h2, .report-record h2 { font-size: 1.4rem; letter-spacing: -.03em; margin: 0; }
 .account-panel p, .report-record p { color: var(--studio-muted); margin: 5px 0 10px; }
 .account-panel form > button { margin-top: 12px; }
+.signin-help { margin-top: 14px; color: var(--studio-muted); }
+.signin-help summary { cursor: pointer; font-weight: 650; }
 .workspace-message { margin: 8px 0; color: #31583e; overflow-wrap: anywhere; font-weight: 610; }
 .workspace-message:empty { display: none; }
 .workspace-filters + .workspace-message:empty + .workspace-list { margin-top: 12px; }
@@ -175,7 +177,7 @@
 .guide-details summary { cursor: pointer; font-weight: 700; }
 .guide-details pre { background: #edf3ea; padding: 10px; overflow-x: auto; }
 .guide-card .guide-note { background: #e7f2e5; padding: 10px 13px; border-radius: 6px; }
-.studio #network-explorer, .studio #review-explorer { display: inline-block; margin-top: 6px; }
+.studio-links { display: flex; flex-wrap: wrap; column-gap: 18px; }
 
 @media (max-width: 730px) {
   .journey-steps, .guide-grid { grid-template-columns: 1fr; }

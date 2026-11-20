@@ -54,7 +54,7 @@ export default function Workspace({ requestedReport }) {
     try {
       await request('/api/account', { action: 'send-code', email });
       setPendingEmail(email);
-      setMessage('Check your email for a one-time code.');
+      setMessage('Check your email for a one-time code and enter it in this tab.');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -109,11 +109,16 @@ export default function Workspace({ requestedReport }) {
     {!pendingEmail ? <form onSubmit={startEmail}>
       <label>Email address<input name="email" type="email" autoComplete="email" maxLength={254} required /></label>
       <button className="cta dark" disabled={busy}>Send sign-in code</button>
-    </form> : <form onSubmit={confirmEmail}>
-      <label>Code sent to {pendingEmail}<input name="code" type="text" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="one-time-code" maxLength={10} required /></label>
-      <div className="account-actions"><button className="cta dark" disabled={busy}>Continue</button>
-        <button type="button" onClick={() => { setPendingEmail(''); setMessage(''); }} disabled={busy}>Use another email</button></div>
-    </form>}
+    </form> : <>
+      <form onSubmit={confirmEmail}>
+        <label>One-time code sent to {pendingEmail}<input name="code" type="text" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="one-time-code" maxLength={10} required /></label>
+        <div className="account-actions"><button className="cta dark" disabled={busy}>Continue</button>
+          <button type="button" onClick={() => { setPendingEmail(''); setMessage(''); }} disabled={busy}>Use another email</button></div>
+      </form>
+      <details className="signin-help"><summary>Email contains a link instead of a code?</summary>
+        <p>Gapmark signs you in using the numeric code. If your email only has a link, ask the site operator to update the Supabase email templates and request a fresh code.</p>
+      </details>
+    </>}
     <p className="workspace-message" role="status">{message}</p>
   </section>;
 

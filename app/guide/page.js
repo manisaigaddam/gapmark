@@ -14,7 +14,7 @@ export default function Page() {
       </div>
       <nav className="guide-nav" aria-label="Guide sections">
         <a href="#create">Create a report</a><a href="#review">Review a proof</a>
-        <a href="#volta">Check a Volta receipt</a><a href="#workspace">Share from Workspace</a>
+        <a href="#volta">Find a zkVerify transaction</a><a href="#workspace">Share from Workspace</a>
       </nav>
       <div className="guide-grid">
         <section className="guide-card guide-wide" id="create">
@@ -49,14 +49,19 @@ export default function Page() {
           <p className="guide-note">The proof verifies the calculation from the reported checks. To check who attested to those checks, use a signed report and a monitor public key you obtained independently.</p>
         </section>
         <section className="guide-card" id="volta">
-          <h2>Check a Volta receipt</h2>
-          <p>On a deployment with testnet submission enabled, generate a proof and select <strong>Submit to zkVerify testnet</strong>. Keep the report open while Gapmark checks the transaction. If it is still pending, select <strong>Check transaction status</strong>.</p>
-          <p>Once the receipt is ready, download the proof and receipt together. Open it in Review and check that the receipt matches this proof. Use the explorer link to see the transaction on Volta.</p>
+          <h2>Find a zkVerify transaction</h2>
+          <ol>
+            <li>In <a href="/create">Create</a>, generate a proof and select <strong>Submit to zkVerify testnet</strong> if enabled. If the job stays pending, select <strong>Check transaction status</strong>.</li>
+            <li>After finalization, find the hash under <strong>Optional zkVerify receipt</strong>. Select <strong>View transaction on zkVerify Volta</strong> to open it or <strong>Copy transaction link</strong> to share it.</li>
+            <li>Download the proof and receipt together. In Review, verify the bundle to find the same link after Gapmark confirms the receipt matches.</li>
+          </ol>
+          <p><a href="https://zkverify-testnet.subscan.io/">Browse the zkVerify Volta explorer</a></p>
         </section>
         <section className="guide-card" id="workspace">
           <h2>Share from Workspace</h2>
           <p>On a deployment with Workspace enabled, <a href="/workspace">sign in by email</a> and save a generated proof. In <strong>Issued</strong>, grant a second email access, then copy the report link.</p>
           <p>In a separate browser profile, open the link and sign in with the second email. Verify that access works, then revoke it from the issuer's Workspace and reopen the link as the reviewer. Downloaded copies remain usable.</p>
+          <p>Enter the numeric code from your email in the same Workspace tab. If your email only contains a link, ask the site operator to enable code-based emails in Supabase.</p>
         </section>
       </div>
     </main>

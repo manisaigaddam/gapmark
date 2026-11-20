@@ -167,8 +167,8 @@ function proofState(text = '') {
 function updateNetworkControls() {
   element('zkverify-controls').hidden = !proofBundle;
   element('network-description').textContent = networkEnabled
-    ? 'Publish this proof and its public inputs on zkVerify’s Volta testnet. A finalized transaction can be saved with the proof.'
-    : 'This deployment has testnet submission disabled. The downloaded file is ready for browser verification.';
+    ? 'Submit this proof and its public inputs to Volta. The transaction link appears here after finalization.'
+    : 'Testnet submission is disabled on this deployment. The proof can still be downloaded and verified in the browser.';
   element('network-submit').disabled = !networkEnabled || networkBusy || Boolean(networkJob && (networkJob.status === 'Finalized' || !networkTerminal.has(networkJob.status)));
   element('network-refresh').hidden = !networkJob || networkTerminal.has(networkJob.status);
   element('network-refresh').disabled = networkBusy;
@@ -178,7 +178,7 @@ function resetNetworkProof() {
   clearWorkspaceMessage('issued');
   networkJob = undefined;
   element('network-state').textContent = '';
-  setExplorer('network-explorer');
+  setTransaction('network');
 }
 
 function runInWorker(message) {
@@ -366,12 +366,14 @@ async function networkRequest(input) {
   return payload;
 }
 
-function setExplorer(id, txHash) {
-  const link = element(id);
-  if (!link) return;
-  link.hidden = typeof txHash !== 'string' || !/^0x[\da-f]{64}$/i.test(txHash);
-  if (link.hidden) link.removeAttribute('href');
-  else link.href = 'https://zkverify-testnet.subscan.io/extrinsic/' + txHash;
+function setTransaction(prefix, txHash) {
+  const link = element(`${prefix}-explorer`);
+  const hash = typeof txHash === 'string' && /^0x[\da-f]{64}$/i.test(txHash) ? txHash : '';
+  if (hash) link.href = 'https://zkverify-testnet.subscan.io/extrinsic/' + hash;
+  else link.removeAttribute('href');
+  element(`${prefix}-tx-hash`).textContent = hash;
+  element(`${prefix}-copy-status`).textContent = '';
+  element(`${prefix}-transaction`).hidden = !hash;
 }
 
 function showNetworkJob() {
@@ -380,7 +382,7 @@ function showNetworkJob() {
     ? finalization ? 'Finalized on zkVerify Volta.' : 'Kurier reports finalization, but Gapmark could not attach a receipt.'
     : `Kurier job status: ${status}.`;
   element('network-state').textContent = [heading, finalization && 'The receipt is ready to download or save.'].filter(Boolean).join(' ');
-  setExplorer('network-explorer', status === 'Finalized' ? txHash : undefined);
+  setTransaction('network', status === 'Finalized' ? txHash : undefined);
 }
 
 async function runNetwork(action) {
@@ -422,11 +424,23 @@ async function runNetwork(action) {
 
 element('network-submit').addEventListener('click', () => runNetwork('submit'));
 element('network-refresh').addEventListener('click', () => runNetwork('status'));
+for (const button of document.querySelectorAll('[data-copy-transaction]')) {
+  button.addEventListener('click', async () => {
+    const prefix = button.dataset.copyTransaction;
+    const link = element(`${prefix}-explorer`);
+    const url = link.href;
+    if (!url) return;
+    let message = 'Transaction link copied.';
+    try { await navigator.clipboard.writeText(url); }
+    catch { message = 'Open the transaction and copy the URL from the address bar.'; }
+    if (link.href === url) element(`${prefix}-copy-status`).textContent = message;
+  });
+}
 
 function updateVerify() { element('verify-proof').disabled = !artifactsAvailable || !uploadedBundle || Boolean(running); }
 function clearReview() {
   reviewedBundle = undefined;
-  setExplorer('review-explorer');
+  setTransaction('review');
   clearWorkspaceMessage('reviewed');
   element('review-results').hidden = true;
   element('review-caption').textContent = 'Upload and verify a proof to see what it establishes.';
@@ -535,7 +549,7 @@ async function checkReviewReceipt(bundle, attempt) {
     if (attempt !== reviewRevision || bundle !== reviewedBundle) return;
     if (result.status === 'finalized') {
       output.textContent = 'The finalized Volta receipt matches this exact proof.';
-      setExplorer('review-explorer', result.receipt.txHash);
+      setTransaction('review', result.receipt.txHash);
     } else output.textContent = 'Gapmark could not confirm the receipt on this deployment. The browser proof result is shown above.';
   } catch {
     if (attempt === reviewRevision && bundle === reviewedBundle) output.textContent = 'Receipt check unavailable. The browser proof result is shown above.';

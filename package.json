@@ -15,7 +15,7 @@
     "zk:prepare": "node scripts/prepare-zk.mjs",
     "zk:submit": "node --env-file-if-exists=.env scripts/kurier.mjs",
     "zk:sign": "node scripts/sign-checkpoint.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --check public/workbench.mjs && node --test test/*.test.mjs"
   },
   "dependencies": {
     "next": "16.4.6",

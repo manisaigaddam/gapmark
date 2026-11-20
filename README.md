@@ -98,14 +98,16 @@ Set it before issuing receipts you intend to retain. Moving from the API-key fal
 
 ### Test a Volta receipt
 
-Generate a proof and select **Submit to zkVerify testnet**. Gapmark checks the proof, registers its verification key with Kurier, and submits the proof and public inputs. Use **Check transaction status** if the job is still pending. After finalization with a transaction hash, download the proof and receipt together. Verify the bundle on Review, confirm that the receipt matches, and open the explorer link.
+Generate a proof and select **Submit to zkVerify testnet**. Gapmark checks the proof, registers its verification key with Kurier, and submits the proof and public inputs. Use **Check transaction status** if the job is still pending. After finalization, **Optional zkVerify receipt** shows the transaction hash and **View transaction on zkVerify Volta** and **Copy transaction link**. Download the proof and receipt together to reopen the same link in Review after verifying the bundle. You can also browse the [Volta testnet explorer](https://zkverify-testnet.subscan.io/).
 
 ### Set up and test Workspace
 
 1. Apply the [workspace migration](supabase/migrations/202611200001_report_workspace.sql) and [receipt migration](supabase/migrations/202611200002_zkverify_receipts.sql), in that order.
-2. Enable email sign-in and sign-ups. Add `{{ .Token }}` to the **Magic Link** and **Confirm signup** templates to send a code. Configure SMTP for external recipients. [Supabase email sign-in docs](https://supabase.com/docs/guides/auth/auth-email-passwordless)
+2. Enable email sign-in and sign-ups. In **Authentication → Email Templates**, replace the link-based content of both **Magic Link** and **Confirm signup** with `<p>Your Gapmark sign-in code is <strong>{{ .Token }}</strong>.</p>`. This sends a code for users to enter in the original Workspace tab. Configure SMTP for external recipients. [Supabase email sign-in docs](https://supabase.com/docs/guides/auth/auth-email-passwordless)
 3. Set the Supabase variables, sign in, and save a generated proof. In **Issued**, grant a second email access and copy the link.
 4. Open the link in another browser profile and sign in with that email. Verify the shared report. Revoke access from the issuer's Workspace and reopen the link as the reviewer. Downloaded files and reviewer-owned copies remain usable.
+
+If an email link sends you to `http://localhost:3000`, check **Authentication → URL Configuration → Site URL**. Set it to the production Gapmark origin, including `https://`. Supabase uses this setting for email links when no redirect URL is supplied. Save the two code templates above, open `/workspace` on the deployed site, and request a fresh code. [Supabase redirect URL docs](https://supabase.com/docs/guides/auth/redirect-urls)
 
 ## Agent Games Wildcard
 

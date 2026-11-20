@@ -1,6 +1,15 @@
 export const title = 'Gapmark';
 export const description = 'Find gaps in uptime reports, check what meets your policy, and share evidence while keeping your monitoring CSV private.';
 
+function transactionDetails(prefix) {
+  return `<div class="transaction-details" id="${prefix}-transaction" hidden>
+    <p class="note">Transaction hash <code id="${prefix}-tx-hash"></code></p>
+    <div class="actions"><a id="${prefix}-explorer" target="_blank" rel="noopener noreferrer">View transaction on zkVerify Volta</a>
+      <button type="button" data-copy-transaction="${prefix}">Copy transaction link</button></div>
+    <p class="note" id="${prefix}-copy-status" role="status"></p>
+  </div>`;
+}
+
 export const workbench = `
   <a class="skip-link" href="#analyze" data-workflow="analyze">Skip to the checker</a>
   <header class="topbar"><div class="shell nav">
@@ -56,7 +65,7 @@ export const workbench = `
             <h3>Optional zkVerify receipt</h3>
             <p id="network-description" class="note"></p>
             <div class="actions"><button type="button" id="network-submit">Submit to zkVerify testnet</button><button type="button" id="network-refresh" hidden>Check transaction status</button></div>
-            <p id="network-state" class="note" role="status"></p><a id="network-explorer" class="workspace-inline" target="_blank" rel="noopener noreferrer" hidden>Open transaction on Volta</a>
+            <p id="network-state" class="note" role="status"></p>${transactionDetails('network')}
           </section>
         </div>
       </article>
@@ -80,7 +89,7 @@ export const workbench = `
           <div><strong>Uptime result</strong><p id="review-verdict"></p></div>
           <div><strong>Your agreement</strong><p id="review-terms"></p></div>
           <div><strong>Data source</strong><p id="review-source"></p></div>
-          <div><strong>zkVerify testnet</strong><p id="review-chain" role="status"></p><a id="review-explorer" class="workspace-inline" target="_blank" rel="noopener noreferrer" hidden>Open transaction on Volta</a></div>
+          <div><strong>zkVerify testnet</strong><p id="review-chain" role="status"></p>${transactionDetails('review')}</div>
         </div>
       </article>
     </section>
