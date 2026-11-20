@@ -38,7 +38,7 @@ export const workbench = `
           <div class="actions"><button type="submit" class="primary" id="calculate-report">Calculate report</button></div>
           <p id="input-error" class="error" role="alert" tabindex="-1" hidden></p>
         </form>
-        <details class="data-guide demo-guide"><summary>Try with demo data</summary>
+        <details class="data-guide demo-guide" open><summary>Choose a demo scenario</summary>
           <div class="samples" aria-label="Demo scenarios">
             <button type="button" data-sample="missing" aria-pressed="true">One check missing</button><button type="button" data-sample="pass" aria-pressed="false">One check down</button><button type="button" data-sample="breach" aria-pressed="false">Two checks down</button>
           </div>
@@ -53,7 +53,7 @@ export const workbench = `
           <section class="timeline-panel"><h3>Check timeline</h3><div id="timeline" class="timeline" aria-label="Monitoring intervals"></div><p id="slot-detail" class="note" aria-live="polite">Select a check to see its time and status.</p></section>
           <div class="proof-controls"><h3>Report proof</h3><div class="actions"><button type="button" class="primary" id="generate" disabled>Generate proof</button><button type="button" id="download-proof" hidden>Download proof JSON</button><button type="button" id="try-verify" hidden>Verify this proof</button></div><p id="proof-state" class="note" role="status"></p><button type="button" class="text-button" id="retry-proof-assets" hidden>Recheck proof files</button></div>
           <section id="zkverify-controls" class="network-guide" hidden aria-label="zkVerify testnet">
-            <h3>On-chain verification</h3>
+            <h3>Optional zkVerify receipt</h3>
             <p id="network-description" class="note"></p>
             <div class="actions"><button type="button" id="network-submit">Submit to zkVerify testnet</button><button type="button" id="network-refresh" hidden>Check transaction status</button></div>
             <p id="network-state" class="note" role="status"></p><a id="network-explorer" class="workspace-inline" target="_blank" rel="noopener noreferrer" hidden>Open transaction on Volta</a>
@@ -69,7 +69,7 @@ export const workbench = `
           <details class="data-guide monitor-guide"><summary>Compare it with your agreement</summary><p>Enter the terms you agreed with the vendor. Leave fields blank if you only want to check the math.</p>
             <div class="fields comparison-fields"><label>Service label<input id="expected-service" maxlength="80"></label><label>Window start <span class="unit">UTC</span><input id="expected-start" type="datetime-local"></label><label>Check interval <span class="unit">min</span><input id="expected-interval" type="number" min="1" max="1440"></label><label>Expected checks<input id="expected-count" type="number" min="1" max="48"></label><label>Required uptime <span class="unit">%</span><input id="expected-threshold" type="number" min="0" max="100" step="0.01"></label></div>
           </details>
-          <details class="data-guide monitor-guide"><summary>Check who signed the data</summary><p>Use a monitor key you obtained separately. A key sent with the report on its own doesn’t establish trust.</p><label for="monitor-key">Trusted monitor public key <span class="note">Ed25519 SPKI in base64url</span></label><input type="text" id="monitor-key" maxlength="120" autocomplete="off" spellcheck="false"></details>
+          <details class="data-guide monitor-guide"><summary>Check who signed the data</summary><p>For a signed report, get the monitor's public key from a source you trust before checking the signature.</p><label for="monitor-key">Trusted monitor public key <span class="note">Ed25519 SPKI in base64url</span></label><input type="text" id="monitor-key" maxlength="120" autocomplete="off" spellcheck="false"></details>
           <div class="actions"><button type="submit" class="primary" id="verify-proof" disabled>Verify proof</button></div><p id="verify-readiness" class="note" role="status"></p>
         </form>
       </article>

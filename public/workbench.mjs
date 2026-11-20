@@ -1,8 +1,8 @@
 import { analyze, assertProofBundle, checkCheckpoint, compareReportTerms, MAX_CSV_CHARS, MAX_SLOTS, SCHEMA, serviceId, SLOT } from './evidence.mjs';
+import { demoCases, demoWindow, sampleCsv } from './demo-data.mjs';
 
 const element = (id) => document.getElementById(id);
 const labels = { PASS: 'Uptime target met', BREACH: 'Uptime target missed', INSUFFICIENT: 'Insufficient evidence' };
-const start = '2026-11-20T12:00';
 let selectedSample = 'missing';
 let csvUploadRevision = 0;
 let report, proofBundle, uploadedBundle;
@@ -116,28 +116,17 @@ async function openReviewSource() {
 }
 
 
-function sampleCsv(kind) {
-  const rows = ['timestamp,status'];
-  for (let index = 0; index < 12; index++) {
-    if (kind === 'missing' && index === 6) continue;
-    const status = index === 10 || (kind === 'breach' && index === 5) ? 'down' : 'up';
-    const timestamp = new Date(Date.parse(`${start}Z`) + index * 5 * 60000).toISOString();
-    rows.push(`${timestamp},${status}`);
-  }
-  return rows.join('\n');
-}
-
 function loadSample(name) {
   selectedSample = name;
   csvUploadRevision++;
   element('calculate-report').disabled = false;
-  element('csv-name').textContent = 'Built-in demo';
+  element('csv-name').textContent = `Demo: ${demoCases[name].label}`;
   for (const button of document.querySelectorAll('[data-sample]')) button.setAttribute('aria-pressed', String(button.dataset.sample === name));
-  element('service').value = 'Checkout API';
-  element('window-start').value = start;
-  element('interval').value = '5';
-  element('slot-count').value = '12';
-  element('threshold').value = '90';
+  element('service').value = demoWindow.service;
+  element('window-start').value = demoWindow.start;
+  element('interval').value = demoWindow.intervalMinutes;
+  element('slot-count').value = demoWindow.slotCount;
+  element('threshold').value = demoWindow.threshold;
   element('csv').value = sampleCsv(name);
   updateWindowHelp();
   analyzeNow();
@@ -179,7 +168,7 @@ function updateNetworkControls() {
   element('zkverify-controls').hidden = !proofBundle;
   element('network-description').textContent = networkEnabled
     ? 'Publish this proof and its public inputs on zkVerify’s Volta testnet. A finalized transaction can be saved with the proof.'
-    : 'Testnet submission is unavailable here. You can still download and verify the proof.';
+    : 'This deployment has testnet submission disabled. The downloaded file is ready for browser verification.';
   element('network-submit').disabled = !networkEnabled || networkBusy || Boolean(networkJob && (networkJob.status === 'Finalized' || !networkTerminal.has(networkJob.status)));
   element('network-refresh').hidden = !networkJob || networkTerminal.has(networkJob.status);
   element('network-refresh').disabled = networkBusy;
@@ -387,7 +376,9 @@ function setExplorer(id, txHash) {
 
 function showNetworkJob() {
   const { status, txHash, finalization } = networkJob;
-  const heading = status === 'Finalized' ? 'Finalized on zkVerify Volta.' : 'zkVerify submission: ' + status + '.';
+  const heading = status === 'Finalized'
+    ? finalization ? 'Finalized on zkVerify Volta.' : 'Kurier reports finalization, but Gapmark could not attach a receipt.'
+    : `Kurier job status: ${status}.`;
   element('network-state').textContent = [heading, finalization && 'The receipt is ready to download or save.'].filter(Boolean).join(' ');
   setExplorer('network-explorer', status === 'Finalized' ? txHash : undefined);
 }
@@ -420,7 +411,7 @@ async function runNetwork(action) {
       }
       showNetworkJob();
     }
-    if (networkJob && !networkTerminal.has(networkJob.status)) element('network-state').textContent += '\nUse Check status to continue later.';
+    if (networkJob && !networkTerminal.has(networkJob.status)) element('network-state').textContent += '\nSelect Check transaction status to continue.';
   } catch (error) {
     if (origin === proofBundle) {
       const details = networkJob ? `\nJob: ${networkJob.jobId}. You can check the same job again.` : '';
@@ -583,7 +574,8 @@ async function checkProofAssets() {
 element('retry-proof-assets').addEventListener('click', checkProofAssets);
 element('save-issued')?.addEventListener('click', (event) => saveToWorkspace('issued', proofBundle, event.currentTarget));
 element('save-reviewed')?.addEventListener('click', (event) => saveToWorkspace('reviewed', reviewedBundle, event.currentTarget));
-loadSample('missing');
+const requestedSample = new URLSearchParams(location.search).get('sample');
+loadSample(Object.hasOwn(demoCases, requestedSample) ? requestedSample : 'missing');
 if (operationMode === 'review') {
   showWorkflow('verify');
   void openReviewSource();

@@ -101,7 +101,7 @@ export default function Workspace({ requestedReport }) {
 
   if (loading) return <p className="workspace-message" role="status">Loading workspace.</p>;
   if (!account?.configured) return <section className="account-panel">
-    <h2>Workspace unavailable</h2><p>{message || 'Connect this deployment to Supabase to enable accounts and saved reports.'}</p>
+    <h2>Workspace unavailable</h2><p>{message || 'Email sign-in and saved reports are disabled on this deployment. You can share reports by downloading the proof JSON from Create.'}</p>
     <a href="/create">Create a proof in your browser</a>
   </section>;
   if (!account.user) return <section className="account-panel">

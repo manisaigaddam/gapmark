@@ -9,6 +9,7 @@ import { verifyLocally } from '../shared/verifier.mjs';
 const port = Number(process.env.PORT ?? 3000);
 const assets = new Map([
   ['/workbench.css', 'text/css'], ['/workbench.mjs', 'text/javascript'], ['/evidence.mjs', 'text/javascript'],
+  ['/demo-data.mjs', 'text/javascript'],
   ['/gapmark.png', 'image/png'],
   ['/proof-worker.js', 'text/javascript'], ['/zk/verification_key.json', 'application/json'],
   ['/zk/manifest.json', 'application/json'], ['/zk/uptime.wasm', 'application/wasm'],

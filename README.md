@@ -1,34 +1,48 @@
 # Gapmark
 
-A Next.js workbench and HTTP agent for checking uptime evidence. The site accepts its three demo cases or the visitor’s own CSV. Browser import, analysis and proving keep raw observations on the device. A proof bundle reveals the selected policy, window metadata, outcome counts, and cryptographic commitment. The API accepts CSV only when a client chooses to send it explicitly. There is no database or required login.
+Gapmark is a browser workbench and HTTP agent for checking uptime reports. Service providers and their customers need to know whether an uptime target was met, even when scheduled checks are missing or the underlying monitoring logs are private.
 
-## Start here on Windows
+Gapmark checks every scheduled slot, returns a verdict, and creates a zero-knowledge proof of the report calculation. A reviewer can verify that proof and compare the agreed terms without receiving the raw logs.
 
-### 1. Open the homepage with what you already have
+## Run locally
 
-Open **PowerShell** and run these lines from the project folder. Node 22 and npm are already installed on this machine. If you are setting up another computer, use the [official Node.js download](https://nodejs.org/en/download).
-
-```powershell
-Set-Location 'C:\Users\saiga\OneDrive\Desktop\zkdabao'
-npm.cmd run preview:offline
-```
-
-Leave PowerShell open. Visit [localhost:3000](http://127.0.0.1:3000) and select **Try the missing-data demo**. You should see **10 up, 1 down, 1 missing** and **Insufficient evidence**. Switch to **Meets policy** or **Below threshold** to try the other outcomes. To load a file, select **Use my CSV** at the top or **Choose CSV file** in the checker. Stop the preview with **Ctrl+C**.
-
-### 2. Install the Next.js dependencies
-
-After stopping the preview, use the same PowerShell window:
+**Requirements:** Node.js 22 or later and npm. The repository includes matching demo proof assets. The browser demo works without accounts or credentials.
 
 ```powershell
-npm.cmd install
+npm.cmd ci
 npm.cmd run dev
 ```
 
-If the install says `ENOTFOUND registry.npmjs.org`, npm cannot reach its registry. Check your connection with `npm.cmd ping`, then retry the install from regular PowerShell. You can keep using the Node-only preview while fixing that. Git, Supabase, Vercel and zkVerify credentials are unnecessary for viewing and testing the analyzer. `npm.cmd test` checks the CSV, policy, proof signal parsing and monitor signature logic without dependencies.
+Open [Gapmark locally](http://127.0.0.1:3000). On macOS or Linux, use `npm` in place of `npm.cmd`.
 
-## Use your own monitoring data
+| Page | What to do |
+| --- | --- |
+| `/` | Switch between example outcomes, then open the selected example. |
+| `/create` | Load a sample or CSV, calculate a verdict, and generate a proof in the browser. |
+| `/review` | Verify a proof file or a shared report and compare it against the agreement. |
+| `/workspace` | Sign in by email to save, share, or reopen proofs. Requires Supabase. |
+| `/guide` | Follow the step-by-step testing guide and check the expected results. |
 
-Set the window start in UTC, interval length in whole minutes, number of expected slots, and minimum uptime percentage. Defaults are 12 five-minute slots and a 90% threshold. Windows can use **1–48 slots** with a total duration of **at most 24 hours**. Rows mark the start of each interval. The window start is inclusive and the end is exclusive. Choose a coarser interval if the number of samples exceeds the circuit limit. The app never silently resamples observations.
+## Try the report and review flow
+
+1. Open [the missing-check demo](http://127.0.0.1:3000/create?sample=missing). Select a bar in the timeline to inspect its timestamp and status. The omitted check is at 12:30 UTC.
+2. Switch scenarios in **Choose a demo scenario** and compare the outcome:
+
+   | Sample | Up | Down | Missing | Expected report |
+   | --- | ---: | ---: | ---: | --- |
+   | One check missing | 10 | 1 | 1 | Insufficient evidence |
+   | One check down | 11 | 1 | 0 | Uptime target met (91.67%) |
+   | Two checks down | 10 | 2 | 0 | Uptime target missed (83.33%) |
+
+3. Select **Generate proof**, download the JSON, and select **Verify this proof**. On Review, select **Verify proof**. The cryptographic check should pass and the verdict should match Create, including a missed target or insufficient evidence.
+4. Open **Compare it with your agreement**. Use service **Checkout API**, start **2026-11-20 12:00 UTC**, interval **5 minutes**, **12 checks**, and **90%** required uptime. Verify, then change the expected uptime to **95%** and verify again. The proof should still verify and the agreement check should flag the difference.
+5. To check rejection, make a copy of the downloaded JSON and change the last digit of the decimal string `publicSignals[0]` (the commitment). Upload the edited copy and verify. Keep the original for further testing.
+
+If dependencies are unavailable, run `npm.cmd run preview:offline` and open [the fallback](http://127.0.0.1:3000). It serves the browser checker and proof workflow with the bundled assets. The full Next.js app adds separate pages, the testnet relay, Workspace, and the signed Games adapter.
+
+### Use your own monitoring data
+
+Use a `timestamp,status` CSV. Timestamps identify the start of an interval and must include a timezone. The selected window starts inclusively and ends exclusively. Use 1–48 scheduled checks over at most 24 hours. An omitted or explicitly missing observation yields **Insufficient evidence**. Duplicate checks, off-grid timestamps, out-of-window rows, and unknown statuses produce an input error. Complete windows are evaluated using exact arithmetic.
 
 ```csv
 timestamp,status
@@ -37,78 +51,81 @@ timestamp,status
 2026-11-20T12:10:00Z,missing
 ```
 
-Set three slots to try these rows as a complete example. Rows can be in any order. The parser accepts a UTF-8 BOM, CSV quoting, ISO timestamps with offsets and extra columns. Only `timestamp` and `status` affect the result. It rejects ambiguous duplicate slots, timestamps outside the window, timestamps off the selected grid and unknown statuses. An omitted slot becomes `missing`. Under this policy any missing slot yields **insufficient evidence**. For a complete window, comparisons use exact integer arithmetic rather than a rounded display percentage.
+To try this CSV, set a start of **2026-11-20 12:00 UTC**, a **5-minute** interval, and **3 expected checks**, then select **Calculate report**.
 
-## Turn on Generate proof
+## Agent API
 
-On Vercel, `vercel.json` selects `npm run build:vercel`. The Linux build downloads the pinned official Circom release and published Powers of Tau file, checks their digests, builds the browser assets, and runs the genuine proof test. These Windows downloads are only for manually preparing proof assets on your own machine. If you redeploy without reusing `public/zk`, the demo setup can generate a different verification key. Keep a matching artifact set for reports that need to verify across deployments.
+`GET /api/agent` returns action descriptions and an example. POST JSON to the same route. [OpenAPI](http://127.0.0.1:3000/api/agent/openapi) describes the request schema.
 
-Do this after `npm.cmd install` succeeds. A proof lets another person check the report's calculation from the public summary. The homepage can calculate a verdict before you install the proving tools.
-
-1. Download the Windows x64 Circom executable from the **Assets** section of the [official iden3 Circom release](https://github.com/iden3/circom/releases/tag/v2.2.3). Save it in Downloads as `circom-windows-amd64.exe`.
-2. Download `powersOfTau28_hez_final_12.ptau` from the power **12** row in the [official snarkjs Powers of Tau table](https://github.com/iden3/snarkjs#7-prepare-phase-2). Save it in Downloads.
-3. Stop the server with **Ctrl+C**. Run this in PowerShell from `zkdabao`:
-
-   ```powershell
-   $env:CIRCOM_BIN = Join-Path $env:USERPROFILE 'Downloads\circom-windows-amd64.exe'
-   $ptauFile = Join-Path $env:USERPROFILE 'Downloads\powersOfTau28_hez_final_12.ptau'
-   & $env:CIRCOM_BIN --version
-   node -e "const [path] = process.argv.slice(1); console.log(require('node:crypto').createHash('blake2b512').update(require('node:fs').readFileSync(path)).digest('hex'))" $ptauFile
-   ```
-
-   Compare the printed hash with the published hash in the power 12 row. Continue if they match:
-
-   ```powershell
-   npm.cmd run zk:prepare -- "$ptauFile"
-   npm.cmd test
-   npm.cmd run dev
-   ```
-
-4. Refresh the site, load a sample, select **Generate proof**, and download the JSON. Open that file in **Verify a proof bundle** on the same page. To test rejection by the cryptographic verifier, edit a copy of the proof file to change the decimal commitment in `publicSignals[0]` while leaving the proof bytes unchanged.
-
-The preparation script writes the matching files to `public/zk`. The default single-operator setup is for a hackathon demonstration. For independent reliance, pass an independently contributed final zkey as the second argument. The script verifies the zkey against the compiled circuit. Preserve that verification key if people need to check previously shared bundles.
-
-The circuit commits to a version tag, the service identifier, start time, interval size, slot count, threshold, ordered statuses, and a private random salt. The verifier checks the service label against the identifier and uses the verification key supplied by this deployment. Proof verification establishes the normalized window and arithmetic. It does not establish that the uploader’s monitoring observations are authentic or that the CSV conversion was correct. A monitor can attest to a checkpoint with `npm.cmd run zk:sign -- <bundle.json> <private-key.pem> <new-signed-bundle.json>`. Reviewers need the returned Ed25519 public key through an independent trusted channel.
-
-## Optional zkVerify submission
-
-Set `KURIER_API_KEY` to your [Kurier testnet key](https://testnet.kurier.xyz/) on the server. Anyone can generate a proof and click **Submit to zkVerify testnet**. The server verifies it locally, registers the deployment's verification key, and forwards the proof and public inputs. The page waits for a finalized transaction reference. The route limits traffic per instance. For a public Vercel deployment, add a [Vercel Firewall rate limit](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting) for `POST /api/zkverify` to enforce a per-IP limit across instances in each region. The CLI alternative is `npm.cmd run zk:submit -- verify <bundle.json>`.
-
-## Agent and Vercel
-
-`GET /api/agent` returns the two available actions. POST JSON to the same route:
-
-```json
-{
-  "action": "check-window",
-  "service": "Example API",
-  "start": "2026-11-20T12:00:00Z",
-  "intervalMinutes": 5,
-  "slotCount": 3,
-  "threshold": "90",
-  "csv": "timestamp,status\n2026-11-20T12:00:00Z,up\n2026-11-20T12:05:00Z,down"
-}
+```powershell
+$endpoint = 'http://127.0.0.1:3000/api/agent'
+$example = (Invoke-RestMethod $endpoint).example | ConvertTo-Json -Depth 10
+Invoke-RestMethod $endpoint -Method Post -ContentType 'application/json' -Body $example
 ```
 
-For a public proof, POST `{"action":"verify-proof","bundle":{...}}`. Supply `trustedMonitorKey` only if you have an independently trusted Ed25519 SPKI public key in base64url. No model is required because the supported actions and verdicts are deterministic. The API has no Agent Games signed request adapter.
+- `check-window` calculates a verdict. The example returns `INSUFFICIENT` with one up, one down, and one missing. The API receives the CSV on the server. Use Create to keep the raw CSV on your device.
+- `verify-proof` checks `bundle` using this deployment's verification key. Add `expectedTerms` with `service`, `start` (ISO timestamp with timezone), `intervalMinutes`, `slotCount`, and `threshold` for a policy decision. Set `requireZkVerify: true` to also require a matching finalized receipt. Supply `trustedMonitorKey` to check a signed checkpoint against an independently trusted Ed25519 SPKI public key in base64url. Read `verified` for the proof result and `policy.decision` for the agreement outcome.
 
-Before deployment, run `npm.cmd run build` with the proof artifacts in place. Vercel can deploy the folder with its [official CLI](https://vercel.com/docs/cli) or import a Git repository. A database is unnecessary for this version. Use the same deployment’s `/api/agent` route for the public API. To reproduce the setup from another checkout, keep its audited proof artifacts and generate a package lock on the first successful install.
+## What the evidence establishes
 
-## Report workspace with Supabase
+The Groth16 circuit checks the counts and verdict for an ordered sequence of normalized monitoring states. Its salted commitment binds those states to the service identifier, window, interval, check count, and threshold. The public bundle includes the service label, terms, counts, verdict, commitment, and proof. Raw CSV rows and the private salt stay in your browser during analysis and proving.
 
-The browser can create and verify proofs before you connect Supabase. To enable accounts, private history and sharing:
+The proof establishes the calculation from the supplied inputs. The accuracy and origin of observations depend on the monitor. To attest to the source, a monitor can use `npm.cmd run zk:sign -- <bundle.json> <private-key.pem> <signed-bundle.json>`. Reviewers need the corresponding public key through a trusted channel.
 
-1. Create a hosted Supabase project. Run `supabase/migrations/202611200001_report_workspace.sql` in its SQL Editor once.
-2. Enable Email sign-in, sign-ups and email confirmation. In Authentication → Email Templates, use `<p>Your Gapmark sign-in code is {{ .Token }}</p>` for both **Magic Link** and **Confirm signup**. Configure custom SMTP before opening sign-in to people outside your Supabase project team.
-3. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `.env` for local development and in Vercel for deployment. Get both from your Supabase project’s Connect dialog. Restart or redeploy. Gapmark checks the signed-in user and applies row-level security with their access token.
-4. Sign in at `/workspace`, generate a proof at `/create`, and save it. In **Issued**, grant access to a second email and copy the report link. Use the second email in a separate browser profile to open and verify the proof. Revoke access and confirm the original link becomes unavailable to that account. A downloaded proof or separate saved copy remains portable.
+The checked-in artifacts use a single-operator demo setup. For independently relied-on reports, use a contributed final zkey checked against the compiled circuit. With Circom available, run `npm.cmd run zk:prepare -- <powers-of-tau.ptau> <final.zkey>`. Keep the matching verification key available for existing proofs. A Volta receipt adds a public testnet transaction reference. Gapmark binds that reference to the exact submitted proof using a server-side seal.
 
-The workspace saves proof bundles and report summaries. Monitoring CSV stays in the browser during the website workflow. zkVerify testnet submission uses `KURIER_API_KEY` separately and is optional for proof creation, verification and saving.
+## Deployment and configuration
 
-### zkVerify receipts and the Agent Games endpoint
+Run `npm.cmd run build:vercel` to check artifact digests, run tests, and build Next.js. Run `npm.cmd start -- --hostname 127.0.0.1` to serve the production build locally. For public hosting, import the Git repository into Vercel with the existing `vercel.json`. Check the production URL from a signed-out browser before sharing it. For a public Kurier relay, add a per-IP [Vercel Firewall rate limit](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting) on `POST /api/zkverify` alongside the app's per-instance limit.
 
-On `/create`, generate a proof and select **Submit to zkVerify testnet**. A Volta receipt is attached only after Kurier returns `Finalized` with a transaction hash. Download the proof and receipt together or save them to Workspace. On `/review` the browser checks the proof and the app checks its match with the sealed receipt, then links to the transaction on Subscan.
+Use the names in [the environment example](.env.example) in a local `.env` or in the hosting provider's server-side environment. Restart or redeploy after updates. Keep secrets out of source control and client-side variables.
 
-Run `supabase/migrations/202611200002_zkverify_receipts.sql` after the workspace migration to attach receipts to saved reports. Set a stable random `KURIER_RECEIPT_SECRET` on each deployment that needs to validate the same receipts. If omitted, the deployment uses `KURIER_API_KEY` for its receipt seal, so rotating that key will invalidate those seals.
+| Variable | Used for | Where to get it |
+| --- | --- | --- |
+| `KURIER_API_KEY` | Optional Volta testnet proof submission. | Create a **testnet** key via [Kurier](https://testnet.kurier.xyz/). See [zkVerify's Kurier docs](https://docs.zkverify.io/overview/getting-started/kurier). |
+| `KURIER_RECEIPT_SECRET` | Optional dedicated seal for Gapmark receipt and job tracking. Otherwise the relay uses the Kurier API key. | Generate locally with the command below. Keep it stable across deployments that review the same receipts. |
+| `AGENT_GAMES_HMAC_SECRET` | Required for the signed Games adapter and official preflight. | Register the URL ending in `/api/agent-games` and copy the dashboard's one-time **Rotate Secret** value. |
+| `KURIER_BASE_URL` | Optional override. The website relay accepts the testnet base or default. | `https://api-testnet.kurier.xyz/api/v1` |
+| `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` | Optional email sign-in, private report history, and sharing. | Supabase project **Connect** dialog. |
 
-For Agent Games register the full public HTTPS URL ending in `/api/agent-games`. Set `AGENT_GAMES_HMAC_SECRET` from the dashboard’s Rotate Secret action and run platform preflight. The route checks the signature over the raw request before parsing and signs the response. For Gapmark-specific tasks it accepts the same actions as `/api/agent` in the signed request body or its `input` field. `/api/agent` remains the ordinary endpoint for API clients. With `verify-proof`, send `expectedTerms` (`service`, `start`, `intervalMinutes`, `slotCount`, `threshold`) and `requireZkVerify: true` to compare an agreement and require a matched finalized receipt.
+Generate a dedicated receipt secret once, then store the output as the server-side `KURIER_RECEIPT_SECRET`:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Set it before issuing receipts you intend to retain. Moving from the API-key fallback to a different receipt secret, or rotating the secret used to seal receipts, changes which seals the deployment can validate.
+
+### Test a Volta receipt
+
+Generate a proof and select **Submit to zkVerify testnet**. Gapmark checks the proof, registers its verification key with Kurier, and submits the proof and public inputs. Use **Check transaction status** if the job is still pending. After finalization with a transaction hash, download the proof and receipt together. Verify the bundle on Review, confirm that the receipt matches, and open the explorer link.
+
+### Set up and test Workspace
+
+1. Apply the [workspace migration](supabase/migrations/202611200001_report_workspace.sql) and [receipt migration](supabase/migrations/202611200002_zkverify_receipts.sql), in that order.
+2. Enable email sign-in and sign-ups. Add `{{ .Token }}` to the **Magic Link** and **Confirm signup** templates to send a code. Configure SMTP for external recipients. [Supabase email sign-in docs](https://supabase.com/docs/guides/auth/auth-email-passwordless)
+3. Set the Supabase variables, sign in, and save a generated proof. In **Issued**, grant a second email access and copy the link.
+4. Open the link in another browser profile and sign in with that email. Verify the shared report. Revoke access from the issuer's Workspace and reopen the link as the reviewer. Downloaded files and reviewer-owned copies remain usable.
+
+## Agent Games Wildcard
+
+The [Wildcard requirements](https://agentgames.zkverify.io/events/wildcard#requirements) ask for a public project link, a public HTTPS agent endpoint, a use case, and build context. A meaningful zkVerify proof reference is optional. The [official homepage timeline](https://agentgames.zkverify.io/) lists **21 November 2026, 22:00 UTC** (**22 November, 03:30 IST**) as the final entry deadline. [Submit your build](https://agentgames.zkverify.io/dashboard/submissions?category=wildcard) redirects signed-out visitors to registration. Successful new-account sign-in and submission acceptance need to be confirmed from a participant account.
+
+| Checklist | What to enter or confirm |
+| --- | --- |
+| Public project link | Link the deployed demo or [repository](https://github.com/manisaigaddam/gapmark) after checking signed-out access. Link the demo guide so reviewers can reproduce the flow. |
+| Public HTTPS endpoint | Use `https://<your-deployment>/api/agent` for direct review. Use `https://<your-deployment>/api/agent-games` if the form asks for a registered signed endpoint or preflight. |
+| Use case | Gapmark helps service providers and customers audit uptime reports while keeping raw monitoring logs private and exposing missing data. |
+| Build context | Gapmark maps CSV rows to scheduled checks and returns a deterministic verdict. Its browser-generated Groth16 proof lets the review agent verify the calculation, compare the agreed terms, and report its findings. |
+| Optional zkVerify reference | If a Volta receipt has finalized, attach its explorer URL and matching proof bundle. The claim is verification of the uptime calculation for a committed reporting window. |
+| Prize eligibility | Connect GitHub and a wallet as required by the [platform rules](https://agentgames.zkverify.io/rules). Confirm the entry appears in the dashboard. |
+
+The [Agent Games build guide](https://agentgames.zkverify.io/build) documents signed preflight. Set the issued HMAC secret on the deployed server and run preflight from the dashboard. Gapmark checks raw request signatures and freshness and signs replies. The adapter accepts Gapmark's read-only actions in the envelope or its `input` field. Local tests cover that handshake. Gapmark uses deterministic rules and has no model dependency.
+
+If registration fails, try the other identity method listed on the [registration page](https://agentgames.zkverify.io/register) or report the exact error via the organizer Discord linked from the Wildcard page. The public demo and ordinary API can be tested independently of the Games account.
+
+## Development checks
+
+- `npm.cmd test` runs the evidence, Groth16, Kurier, receipt, workspace, and local signed preflight tests.
+- `npm.cmd run zk:bootstrap` validates the bundled proof assets or prepares the demo assets if the complete set is absent.
+- `npm.cmd run zk:submit -- verify <bundle.json>` submits a proof through a configured Kurier account as a CLI alternative.
