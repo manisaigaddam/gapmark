@@ -5,6 +5,7 @@
 node_modules
 build
 private
+local-test-data
 *.ptau
 *.wtns
 *.pem

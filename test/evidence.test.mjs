@@ -6,6 +6,8 @@ import { createContext, runInContext } from 'node:vm';
 import assert from 'node:assert/strict';
 import { analyze, checkCheckpoint, checkpointMessage, compareReportTerms, MAX_SLOTS, readPublicSignals, SCHEMA, serviceId, SLOT, timestampSeconds } from '../public/evidence.mjs';
 import { runAgent } from '../shared/agent.mjs';
+import { GET as getAgent, POST as agentEndpoint } from '../app/api/agent/route.js';
+import { GET as getAgentSpec } from '../app/api/agent/openapi/route.js';
 import { POST as relay } from '../app/api/zkverify/route.js';
 
 const window = { service: 'Example API', start: '2026-11-20T12:00:00Z', intervalMinutes: 5, slotCount: 3, threshold: '66.66' };
@@ -91,6 +93,17 @@ test('agent returns the counts and explicitly marks an unproved verdict', async 
   assert.equal(result.verdict, 'INSUFFICIENT');
   assert.match(result.evidence, /No proof/);
   assert.equal(Object.hasOwn(result, 'slots'), false);
+  const discovery = await getAgent().json();
+  const spec = await getAgentSpec(new Request('https://gapmark.example/api/agent/openapi')).json();
+  assert.equal(discovery.openapi, '/api/agent/openapi');
+  assert.equal(spec.servers[0].url, 'https://gapmark.example');
+  const operation = spec.paths['/api/agent'].post;
+  assert.deepEqual(operation.requestBody.content['application/json'].examples.missingCheck.value, discovery.example);
+  const response = await agentEndpoint(new Request('https://gapmark.example/api/agent', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(discovery.example)
+  }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).verdict, 'INSUFFICIENT');
 });
 
 test('browser worker proves the window and the public relayer accepts only the valid proof', { skip: !existsSync('public/zk/manifest.json') && 'compile the proof assets to enable this check' }, async (t) => {

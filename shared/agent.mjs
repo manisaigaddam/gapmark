@@ -1,7 +1,12 @@
 import { analyze, assertProofBundle, checkCheckpoint, describe, serviceId } from '../public/evidence.mjs';
+import { exampleWindowRequest } from './agent-openapi.mjs';
 
 export const agentContract = {
   name: 'Gapmark',
+  endpoint: '/api/agent',
+  method: 'POST',
+  openapi: '/api/agent/openapi',
+  example: exampleWindowRequest,
   actions: {
     'check-window': { fields: ['csv', 'service', 'start', 'intervalMinutes', 'slotCount', 'threshold'], description: 'Calculate a verdict. API input reaches the server. Use the website to keep raw CSV on your device.' },
     'verify-proof': { fields: ['bundle', 'trustedMonitorKey (optional)'], description: 'Verify a Groth16 bundle against this deployment’s key and optionally check an Ed25519 checkpoint.' }

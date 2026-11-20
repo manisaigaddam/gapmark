@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { agentContract, readJsonBody, runAgent } from '../shared/agent.mjs';
+import { agentOpenApi } from '../shared/agent-openapi.mjs';
 import { title, workbench } from '../shared/workbench.mjs';
 import { verifyLocally } from '../shared/verifier.mjs';
 
@@ -23,6 +24,7 @@ function json(response, status, value) { send(response, status, JSON.stringify(v
 
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://127.0.0.1').pathname;
+  if (path === '/api/agent/openapi' && request.method === 'GET') return json(response, 200, agentOpenApi);
   if (path === '/api/agent') {
     if (request.method === 'GET') return json(response, 200, agentContract);
     if (request.method !== 'POST') return json(response, 405, { error: 'Use GET or POST.' });
@@ -31,7 +33,7 @@ createServer(async (request, response) => {
       return json(response, 200, await runAgent(await readJsonBody(request), verifyLocally));
     } catch (error) { return json(response, error.status ?? 400, { error: error.message }); }
   }
-  if (request.method !== 'GET') return json(response, 405, { error: 'Use GET.' });
+  if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { error: 'Use GET or HEAD.' });
   if (path === '/') return send(response, 200, html, 'text/html; charset=utf-8');
   const type = assets.get(path);
   if (type) {

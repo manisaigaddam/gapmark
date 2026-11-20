@@ -2,14 +2,9 @@ import { analyze, assertProofBundle, checkCheckpoint, compareReportTerms, MAX_CS
 
 const element = (id) => document.getElementById(id);
 const labels = { PASS: 'Uptime target met', BREACH: 'Uptime target missed', INSUFFICIENT: 'Insufficient evidence' };
-const samples = {
-  missing: 'One expected check has no row. The report shows the gap separately from downtime.',
-  pass: 'All 12 checks are present. One failed, so uptime still clears the 90% target.',
-  breach: 'All 12 checks are present. Two failed, so uptime falls below the 90% target.'
-};
 const start = '2026-11-20T12:00';
 let selectedSample = 'missing';
-let demoData = false;
+let csvUploadRevision = 0;
 let report, proofBundle, uploadedBundle;
 let revision = 0;
 let artifactsAvailable = false;
@@ -36,8 +31,9 @@ function sampleCsv(kind) {
 
 function loadSample(name) {
   selectedSample = name;
-  demoData = true;
-  element('sample-description').textContent = samples[name];
+  csvUploadRevision++;
+  element('calculate-report').disabled = false;
+  element('csv-name').textContent = 'Built-in demo';
   for (const button of document.querySelectorAll('[data-sample]')) button.setAttribute('aria-pressed', String(button.dataset.sample === name));
   element('service').value = 'Checkout API';
   element('window-start').value = start;
@@ -109,8 +105,8 @@ function formatTime(epoch) { return new Date(epoch * 1000).toISOString().replace
 function render(result) {
   element('result').hidden = false;
   element('report-origin').hidden = false;
-  element('report-origin').textContent = demoData ? 'Data source: built-in demo.' : 'Data source: your CSV.';
-  element('window-caption').textContent = `${result.service} · ${result.slotCount} × ${result.intervalMinutes} min · ${result.thresholdBps / 100}% threshold`;
+  element('report-origin').textContent = `Data source: ${element('csv-name').textContent}.`;
+  element('window-caption').textContent = `${result.service} · ${formatTime(result.windowStart)} · ${result.slotCount} checks every ${result.intervalMinutes} min · ${result.thresholdBps / 100}% target`;
   element('verdict').parentElement.dataset.verdict = result.verdict;
   element('verdict').textContent = labels[result.verdict];
   const { up, missing } = result.counts;
@@ -152,9 +148,10 @@ function analyzeNow() {
     element('input-error').hidden = false;
     element('result').hidden = true;
     element('report-origin').hidden = true;
-    element('window-caption').textContent = 'Fix the input to analyze this window.';
+    element('window-caption').textContent = 'Fix the input to calculate this report.';
   }
   proofState();
+  return Boolean(report);
 }
 
 function download(text, type, name) {
@@ -164,20 +161,32 @@ function download(text, type, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-element('analysis-form').addEventListener('submit', (event) => { event.preventDefault(); analyzeNow(); });
-element('analysis-form').addEventListener('input', (event) => {
-  if (event.target.type === 'file') return;
-  if (event.target.id === 'csv') demoData = false;
-  element('sample-description').textContent = demoData ? 'Using the demo CSV with your report settings.' : 'Using the CSV you supplied.';
-  if (event.target.id === 'interval' || event.target.id === 'slot-count') updateWindowHelp();
-  revision++; report = undefined; proofBundle = undefined;
+function invalidateReport() {
+  revision++;
+  report = undefined;
+  proofBundle = undefined;
   resetNetworkProof();
   element('result').hidden = true;
   element('report-origin').hidden = true;
   element('input-error').hidden = true;
-  element('window-caption').textContent = 'Input changed. Recalculate to update the report.';
+  element('window-caption').textContent = 'Select Calculate report to use these inputs.';
   for (const button of document.querySelectorAll('[data-sample]')) button.setAttribute('aria-pressed', 'false');
   proofState();
+}
+
+element('analysis-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!element('calculate-report').disabled) element(analyzeNow() ? 'report-title' : 'input-error').focus();
+});
+element('analysis-form').addEventListener('input', (event) => {
+  if (event.target.type === 'file') return;
+  if (event.target.id === 'csv') {
+    csvUploadRevision++;
+    element('calculate-report').disabled = false;
+    element('csv-name').textContent = 'CSV entered by hand';
+  }
+  if (event.target.id === 'interval' || event.target.id === 'slot-count') updateWindowHelp();
+  invalidateReport();
 });
 for (const button of document.querySelectorAll('[data-sample]')) button.addEventListener('click', () => loadSample(button.dataset.sample));
 function showWorkflow(name) {
@@ -200,15 +209,28 @@ syncWorkflow();
 element('csv-file').addEventListener('change', async ({ target }) => {
   const [file] = target.files;
   if (!file) return;
+  const attempt = ++csvUploadRevision;
+  target.value = '';
+  element('csv').value = '';
+  element('csv-name').textContent = 'Reading CSV file.';
+  element('calculate-report').disabled = true;
+  invalidateReport();
   try {
     if (file.size > MAX_CSV_CHARS * 4) throw new Error('CSV file is too large.');
     const content = await file.text();
+    if (attempt !== csvUploadRevision) return;
     if (content.length > MAX_CSV_CHARS) throw new Error('CSV exceeds the 64,000-character limit.');
     element('csv').value = content;
-    element('csv').dispatchEvent(new Event('input', { bubbles: true }));
-    analyzeNow();
-  } catch (error) { element('input-error').textContent = error.message; element('input-error').hidden = false; }
-  finally { target.value = ''; }
+    element('csv-name').textContent = file.name;
+  } catch (error) {
+    if (attempt !== csvUploadRevision) return;
+    element('csv-name').textContent = 'Choose a CSV file';
+    element('input-error').textContent = error.message;
+    element('input-error').hidden = false;
+    element('input-error').focus();
+  } finally {
+    if (attempt === csvUploadRevision) element('calculate-report').disabled = false;
+  }
 });
 element('download-csv').addEventListener('click', () => download(`${sampleCsv(selectedSample)}\n`, 'text/csv', `uptime-${selectedSample}.csv`));
 element('generate').addEventListener('click', async () => {
@@ -300,7 +322,7 @@ element('verify-form').addEventListener('input', ({ target }) => {
   if (target.type === 'file') return;
   reviewRevision++;
   clearReview();
-  element('verify-state').textContent = uploadedBundle ? 'Select Verify report to check the updated terms or key.' : '';
+  element('verify-state').textContent = uploadedBundle ? 'Select Verify proof to check the updated terms or key.' : '';
 });
 element('try-verify').addEventListener('click', () => {
   if (!proofBundle) return;
@@ -329,9 +351,14 @@ element('proof-file').addEventListener('change', async ({ target }) => {
       assertProofBundle(bundle);
       if (fileRevision !== uploadRevision) return;
       uploadedBundle = bundle;
-      if (!artifactsAvailable) element('verify-state').textContent = 'The circuit verification artifacts are unavailable.';
+      element('verify-state').textContent = 'File is ready. Select Verify proof.';
     }
-  } catch (error) { if (fileRevision === uploadRevision) element('verify-state').textContent = error.message; }
+  } catch (error) {
+    if (fileRevision === uploadRevision) {
+      element('verify-state').textContent = error.message;
+      element('review-title').focus();
+    }
+  }
   finally { if (fileRevision === uploadRevision) { target.value = ''; updateVerify(); } }
 });
 
@@ -345,22 +372,28 @@ element('verify-form').addEventListener('submit', async (event) => {
     interval: element('expected-interval').value, count: element('expected-count').value, threshold: element('expected-threshold').value };
   element('verify-proof').disabled = true;
   clearReview();
+  element('review-title').focus();
   element('verify-state').textContent = 'Checking the Groth16 proof…';
   try {
     const publicReport = assertProofBundle(bundle);
-    const terms = compareReportTerms(publicReport, bundle.service, expected);
     if (await serviceId(bundle.service) !== publicReport.serviceId) throw new Error('The service label does not match the public proof.');
     const valid = await runInWorker({ action: 'verify', publicSignals: bundle.publicSignals, proof: bundle.proof });
     if (!valid) throw new Error('Proof rejected. Its public signals or verification key do not match.');
     let origin;
     try { origin = await checkCheckpoint(bundle, publicReport, trustedKey); } catch (error) { origin = `Checkpoint could not be verified. ${error.message}`; }
+    let termsMessage;
+    try {
+      const terms = compareReportTerms(publicReport, bundle.service, expected);
+      termsMessage = terms.differences.length ? `Agreement fields differ: ${terms.differences.join(', ')}.` :
+        terms.checked.length ? `Matches the ${terms.checked.length} ${terms.checked.length === 1 ? 'term' : 'terms'} you entered.` : 'Enter your agreement terms to compare them with the verified report.';
+    } catch (error) { termsMessage = `Check the agreement fields and try again. ${error.message}`; }
     const { up, down, missing } = publicReport.counts;
     if (bundle === uploadedBundle && attempt === reviewRevision) {
       element('verify-state').textContent = '';
       element('review-caption').textContent = `${bundle.service} · ${formatTime(publicReport.windowStart)} · ${publicReport.slotCount} checks × ${publicReport.intervalMinutes} min · ${publicReport.thresholdBps / 100}% target`;
-      element('review-proof').textContent = `Valid for this deployment. ${up} up, ${down} down, ${missing} missing. ${labels[publicReport.verdict]}.`;
-      element('review-terms').textContent = terms.differences.length ? `Doesn’t match your agreement: ${terms.differences.join(', ')}.` :
-        terms.checked.length ? `Matches the ${terms.checked.length} ${terms.checked.length === 1 ? 'term' : 'terms'} you entered.` : 'Enter your agreement terms to compare them with the verified report.';
+      element('review-proof').textContent = 'Proof verified using the Gapmark circuit key.';
+      element('review-verdict').textContent = `${labels[publicReport.verdict]}. ${up} up, ${down} down, ${missing} missing.`;
+      element('review-terms').textContent = termsMessage;
       element('review-source').textContent = origin;
       element('review-results').hidden = false;
     }
@@ -375,8 +408,7 @@ async function checkProofAssets() {
   if (checkingAssets) return;
   checkingAssets = true;
   assetError = '';
-  element('proof-readiness-label').textContent = 'Checking proof setup';
-  element('proof-readiness-detail').textContent = '';
+  element('verify-readiness').textContent = 'Checking proof setup.';
   proofState();
   try {
     if (!globalThis.isSecureContext || typeof Worker !== 'function') throw new Error('Open the site on HTTPS or localhost to run browser proofs.');
@@ -392,8 +424,7 @@ async function checkProofAssets() {
     assetError = error.name === 'TimeoutError' ? 'The proof file check timed out.' : error.message;
   } finally {
     checkingAssets = false;
-    element('proof-readiness-label').textContent = artifactsAvailable ? 'Browser proofs ready' : 'Browser proofs unavailable';
-    element('proof-readiness-detail').textContent = assetError || 'Generate and verify proofs here with the demo or your CSV.';
+    element('verify-readiness').textContent = assetError;
     proofState();
     updateVerify();
   }
