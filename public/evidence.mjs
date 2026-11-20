@@ -121,7 +121,7 @@ export const VERDICT_CODE = Object.freeze({ BREACH: 0, PASS: 1, INSUFFICIENT: 2 
 export function compareReportTerms(report, service, expected) {
   const terms = [
     ['service label', expected.service.trim(), service, (value) => value],
-    ['window start', expected.start, report.windowStart, (value) => timestampSeconds(`${value}Z`)],
+    ['window start', expected.start, report.windowStart, (value) => timestampSeconds(/(?:Z|[+-]\d\d:\d\d)$/i.test(value) ? value : `${value}Z`)],
     ['check interval', expected.interval, report.intervalMinutes, (value) => integer(Number(value), 1, 1440, 'Check interval')],
     ['expected checks', expected.count, report.slotCount, (value) => integer(Number(value), 1, MAX_SLOTS, 'Expected checks')],
     ['required uptime', expected.threshold, report.thresholdBps, thresholdBps]

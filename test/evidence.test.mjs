@@ -160,7 +160,25 @@ test('browser worker proves the window and the public relayer accepts only the v
     const { jobId, receipt } = await submitted.json();
     assert.equal((await post({ action: 'status', jobId: 'different-job', receipt })).status, 403);
     const status = await post({ action: 'status', jobId, receipt });
-    assert.deepEqual(await status.json(), { network: 'testnet', jobId, status: 'Finalized', txHash: chainHash });
+    const { finalization, ...jobResult } = await status.json();
+    assert.deepEqual(jobResult, { network: 'testnet', jobId, status: 'Finalized', txHash: chainHash });
+    assert.equal(finalization.vkHash, chainHash);
+    const attached = { ...bundle, zkverifyReceipt: finalization };
+    const check = (candidate) => post({ action: 'check-receipt', bundle: candidate }).then((response) => response.json());
+    assert.deepEqual(await check(attached), { status: 'finalized', receipt: finalization });
+    assert.deepEqual(await check({ ...attached, publicSignals: changed }), { status: 'invalid' });
+    assert.deepEqual(await check({ ...attached, zkverifyReceipt: { ...finalization, txHash: '0x' + '2'.repeat(64) } }), { status: 'invalid' });
+    const expectedTerms = { service: report.service, start: '2026-11-20T17:30:00+05:30',
+      intervalMinutes: 5, slotCount: 3, threshold: '66.66' };
+    const input = { action: 'verify-proof', bundle: attached, expectedTerms, requireZkVerify: true };
+    const audit = await runAgent(input, async () => true);
+    assert.equal(audit.verified, true);
+    assert.equal(audit.zkverify.status, 'finalized');
+    assert.equal(audit.policy.decision, 'insufficient-evidence');
+    assert.equal((await runAgent({ ...input, bundle }, async () => true)).policy.decision, 'needs-zkverify-receipt');
+    const mismatch = await runAgent({ ...input, expectedTerms: { ...expectedTerms, threshold: '99' } }, async () => true);
+    assert.equal(mismatch.verified, true);
+    assert.equal(mismatch.policy.decision, 'agreement-mismatch');
     assert.equal(upstream.mock.callCount(), 3);
   } finally {
     if (key === undefined) delete process.env.KURIER_API_KEY;

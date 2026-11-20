@@ -72,7 +72,7 @@ test('workspace keeps issued report grants scoped to the authenticated issuer an
       assert.deepEqual(JSON.parse(init.body), { report_id: report, issuer_id: user.id, recipient_email: 'reviewer@example.com' });
       return new Response(null, { status: 201 });
     }
-    if (url.searchParams.get('select')?.includes('bundle')) return Response.json([]);
+    if (url.searchParams.get('select') === '*') return Response.json([]);
     assert.equal(url.searchParams.get('owner_id'), 'eq.' + user.id);
     assert.equal(url.searchParams.get('kind'), 'eq.issued');
     return Response.json([{ id: report }]);

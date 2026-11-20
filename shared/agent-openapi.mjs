@@ -62,7 +62,18 @@ export const agentOpenApi = {
       properties: {
         action: { const: 'verify-proof' },
         bundle: { $ref: '#/components/schemas/ProofBundle' },
-        trustedMonitorKey: { type: 'string', maxLength: 120, description: 'An independently trusted Ed25519 SPKI public key in base64url.' }
+        trustedMonitorKey: { type: 'string', maxLength: 120, description: 'An independently trusted Ed25519 SPKI public key in base64url.' },
+        expectedTerms: {
+          type: 'object',
+          description: 'Send all five terms for a policy decision. Partial terms are compared and marked incomplete.',
+          properties: {
+            service, start: { type: 'string', format: 'date-time' },
+            intervalMinutes: { type: 'integer', minimum: 1, maximum: 1440 },
+            slotCount: { type: 'integer', minimum: 1, maximum: MAX_SLOTS },
+            threshold: { oneOf: [{ type: 'number', minimum: 0, maximum: 100, multipleOf: 0.01 }, { type: 'string' }] }
+          }
+        },
+        requireZkVerify: { type: 'boolean', description: 'Require an attached finalized Volta receipt for a passing policy decision.' }
       }
     },
     ProofBundle: {
@@ -79,6 +90,7 @@ export const agentOpenApi = {
           }
         },
         publicSignals: array(decimal, 10),
+        zkverifyReceipt: { type: 'object', description: 'A finalized Volta receipt attached by Gapmark to the downloaded proof.' },
         checkpoint: {
           type: 'object', required: ['algorithm', 'signature'],
           properties: { algorithm: { const: 'Ed25519' }, signature: { type: 'string', maxLength: 120 } }

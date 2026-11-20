@@ -1,6 +1,7 @@
 import { readJsonBody } from '../../../shared/agent.mjs';
 import { assertProofBundle, serviceId } from '../../../public/evidence.mjs';
 import { verifyLocally } from '../../../shared/verifier.mjs';
+import { checkKurierFinalization, proofDigest } from '../../../shared/zkverify-receipt.mjs';
 import { checkedEmail, problem, readSession, sameSiteJson, supabase, workspaceResponse } from '../../../shared/supabase.mjs';
 
 export const runtime = 'nodejs';
@@ -38,10 +39,11 @@ export function GET(request) {
   return handle(request, async ({ access, user }) => {
     const id = new URL(request.url).searchParams.get('report');
     if (id !== null) {
-      const matches = await supabase(query(reports, { id: `eq.${reportId(id)}`, select: `${listFields},bundle` }), { access });
+      const matches = await supabase(query(reports, { id: `eq.${reportId(id)}`, select: '*' }), { access });
       if (!matches?.length) throw problem('This report is unavailable to your account.', 404);
-      const { owner_id, ...report } = matches[0];
-      return { data: { report: { ...report, owned: user.id === owner_id } } };
+      const { owner_id, bundle, zkverify_receipt } = matches[0];
+      const report = Object.fromEntries(listFields.split(',').filter((field) => field !== 'owner_id').map((field) => [field, matches[0][field]]));
+      return { data: { report: { ...report, bundle: zkverify_receipt ? { ...bundle, zkverifyReceipt: zkverify_receipt } : bundle, owned: user.id === owner_id } } };
     }
     const list = await supabase(query(reports, { select: listFields, order: 'created_at.desc,id.desc', limit: '100' }), { access });
     const owned = new Set(list.filter((item) => item.owner_id === user.id && item.kind === 'issued').map((item) => item.id));
@@ -66,16 +68,27 @@ export function POST(request) {
         bundle.checkpoint = { algorithm: checkpoint.algorithm, signature: checkpoint.signature };
       }
       if (await serviceId(service) !== report.serviceId || !await verifyLocally(bundle)) throw problem('This proof could not be verified.', 422);
+      const chain = checkKurierFinalization(input.bundle);
+      if (input.bundle.zkverifyReceipt && chain.status !== 'finalized') throw problem('The zkVerify receipt could not be matched to this proof on this deployment.', 422);
+      const zkverifyReceipt = chain.receipt;
       const inserted = await supabase(query(reports, { on_conflict: 'owner_id,kind,commitment', select: 'id' }), {
         access, prefer: 'resolution=ignore-duplicates,return=representation',
         body: { owner_id: user.id, kind: input.kind, service, commitment: report.commitment, verdict: report.verdict,
-          window_start: new Date(report.windowStart * 1000).toISOString(), bundle }
+          window_start: new Date(report.windowStart * 1000).toISOString(), bundle,
+          ...(zkverifyReceipt && { zkverify_receipt: zkverifyReceipt }) }
       });
       if (inserted?.length) return { data: { id: inserted[0].id }, status: 201 };
       const existing = await supabase(query(reports, {
-        select: 'id', owner_id: `eq.${user.id}`, kind: `eq.${input.kind}`, commitment: `eq.${report.commitment}`
+        select: zkverifyReceipt ? 'id,bundle' : 'id', owner_id: `eq.${user.id}`, kind: `eq.${input.kind}`, commitment: `eq.${report.commitment}`
       }), { access });
       if (!existing?.length) throw problem('The report changed while saving. Try again.', 409);
+      if (zkverifyReceipt) {
+        if (proofDigest(existing[0].bundle) !== zkverifyReceipt.proofDigest) throw problem('The saved report uses different proof bytes for this commitment.', 409);
+        const updated = await supabase(query(reports, { id: `eq.${existing[0].id}`, owner_id: `eq.${user.id}`, select: 'id' }), {
+          access, method: 'PATCH', prefer: 'return=representation', body: { zkverify_receipt: zkverifyReceipt }
+        });
+        if (!updated?.length) throw problem('The report changed while saving. Try again.', 409);
+      }
       return { data: { id: existing[0].id } };
     }
     if (!['share', 'revoke', 'delete'].includes(input?.action)) throw problem('Choose a workspace action.');

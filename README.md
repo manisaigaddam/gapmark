@@ -104,3 +104,11 @@ The browser can create and verify proofs before you connect Supabase. To enable 
 4. Sign in at `/workspace`, generate a proof at `/create`, and save it. In **Issued**, grant access to a second email and copy the report link. Use the second email in a separate browser profile to open and verify the proof. Revoke access and confirm the original link becomes unavailable to that account. A downloaded proof or separate saved copy remains portable.
 
 The workspace saves proof bundles and report summaries. Monitoring CSV stays in the browser during the website workflow. zkVerify testnet submission uses `KURIER_API_KEY` separately and is optional for proof creation, verification and saving.
+
+### zkVerify receipts and the Agent Games endpoint
+
+On `/create`, generate a proof and select **Submit to zkVerify testnet**. A Volta receipt is attached only after Kurier returns `Finalized` with a transaction hash. Download the proof and receipt together or save them to Workspace. On `/review` the browser checks the proof and the app checks its match with the sealed receipt, then links to the transaction on Subscan.
+
+Run `supabase/migrations/202611200002_zkverify_receipts.sql` after the workspace migration to attach receipts to saved reports. Set a stable random `KURIER_RECEIPT_SECRET` on each deployment that needs to validate the same receipts. If omitted, the deployment uses `KURIER_API_KEY` for its receipt seal, so rotating that key will invalidate those seals.
+
+For Agent Games register the full public HTTPS URL ending in `/api/agent-games`. Set `AGENT_GAMES_HMAC_SECRET` from the dashboard’s Rotate Secret action and run platform preflight. The route checks the signature over the raw request before parsing and signs the response. For Gapmark-specific tasks it accepts the same actions as `/api/agent` in the signed request body or its `input` field. `/api/agent` remains the ordinary endpoint for API clients. With `verify-proof`, send `expectedTerms` (`service`, `start`, `intervalMinutes`, `slotCount`, `threshold`) and `requireZkVerify: true` to compare an agreement and require a matched finalized receipt.

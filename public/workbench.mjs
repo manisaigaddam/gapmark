@@ -29,6 +29,18 @@ function clearWorkspaceMessage(kind) {
   element(kind + '-workspace-link').hidden = true;
 }
 
+function proofForServer(bundle, includeCheckpoint = false) {
+  const { schema, service, publicSignals, proof, checkpoint, zkverifyReceipt } = bundle;
+  const { pi_a, pi_b, pi_c, protocol, curve } = proof;
+  const result = { schema, service, publicSignals, proof: { pi_a, pi_b, pi_c, protocol, curve } };
+  if (includeCheckpoint && checkpoint) result.checkpoint = { algorithm: checkpoint.algorithm, signature: checkpoint.signature };
+  if (zkverifyReceipt) {
+    const { network, jobId, proofDigest, vkHash, txHash, blockHash, statement, seal } = zkverifyReceipt;
+    result.zkverifyReceipt = { network, jobId, proofDigest, vkHash, txHash, blockHash, statement, seal };
+  }
+  return result;
+}
+
 async function saveToWorkspace(kind, bundle, button) {
   if (!bundle) return;
   const state = element(kind + '-save-state');
@@ -40,7 +52,7 @@ async function saveToWorkspace(kind, bundle, button) {
   try {
     const response = await fetch('/api/workspace', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'save', kind, bundle }), signal: AbortSignal.timeout(25000)
+      body: JSON.stringify({ action: 'save', kind, bundle: proofForServer(bundle, true) }), signal: AbortSignal.timeout(25000)
     });
     const result = await response.json();
     if (!current()) return;
@@ -148,10 +160,14 @@ function updateWindowHelp() {
 }
 
 function proofState(text = '') {
-  element('generate').disabled = !artifactsAvailable || !report || Boolean(running);
+  element('generate').disabled = !artifactsAvailable || !report || Boolean(proofBundle || running);
   element('download-proof').hidden = !proofBundle;
+  element('download-proof').textContent = proofBundle?.zkverifyReceipt ? 'Download proof and receipt' : 'Download proof JSON';
   element('try-verify').hidden = !proofBundle;
-  if (element('save-issued')) element('save-issued').hidden = !proofBundle;
+  if (element('save-issued')) {
+    element('save-issued').hidden = !proofBundle;
+    element('save-issued').textContent = proofBundle?.zkverifyReceipt ? 'Save proof and receipt' : 'Save to workspace';
+  }
   element('retry-proof-assets').hidden = !assetError || checkingAssets;
   element('proof-state').textContent = text || (artifactsAvailable
     ? 'Proof generation runs on this device. The CSV stays in this browser.'
@@ -162,7 +178,7 @@ function proofState(text = '') {
 function updateNetworkControls() {
   element('zkverify-controls').hidden = !proofBundle;
   element('network-description').textContent = networkEnabled
-    ? 'Publish the proof and its public report values on the testnet. Your CSV stays here.'
+    ? 'Publish this proof and its public inputs on zkVerify’s Volta testnet. A finalized transaction can be saved with the proof.'
     : 'Testnet submission is unavailable here. You can still download and verify the proof.';
   element('network-submit').disabled = !networkEnabled || networkBusy || Boolean(networkJob && (networkJob.status === 'Finalized' || !networkTerminal.has(networkJob.status)));
   element('network-refresh').hidden = !networkJob || networkTerminal.has(networkJob.status);
@@ -173,6 +189,7 @@ function resetNetworkProof() {
   clearWorkspaceMessage('issued');
   networkJob = undefined;
   element('network-state').textContent = '';
+  setExplorer('network-explorer');
 }
 
 function runInWorker(message) {
@@ -360,10 +377,19 @@ async function networkRequest(input) {
   return payload;
 }
 
+function setExplorer(id, txHash) {
+  const link = element(id);
+  if (!link) return;
+  link.hidden = typeof txHash !== 'string' || !/^0x[\da-f]{64}$/i.test(txHash);
+  if (link.hidden) link.removeAttribute('href');
+  else link.href = 'https://zkverify-testnet.subscan.io/extrinsic/' + txHash;
+}
+
 function showNetworkJob() {
-  const { status, network, jobId, txHash } = networkJob;
-  const heading = status === 'Finalized' ? `Confirmed on zkVerify ${network}.` : `Kurier status: ${status}`;
-  element('network-state').textContent = [heading, `Job: ${jobId}`, txHash && `Transaction: ${txHash}`].filter(Boolean).join('\n');
+  const { status, txHash, finalization } = networkJob;
+  const heading = status === 'Finalized' ? 'Finalized on zkVerify Volta.' : 'zkVerify submission: ' + status + '.';
+  element('network-state').textContent = [heading, finalization && 'The receipt is ready to download or save.'].filter(Boolean).join(' ');
+  setExplorer('network-explorer', status === 'Finalized' ? txHash : undefined);
 }
 
 async function runNetwork(action) {
@@ -387,6 +413,11 @@ async function runNetwork(action) {
       const job = await networkRequest({ action: 'status', jobId: networkJob.jobId, receipt: networkJob.receipt });
       if (origin !== proofBundle) return;
       networkJob = { ...networkJob, ...job };
+      if (job.finalization) {
+        origin.zkverifyReceipt = job.finalization;
+        clearWorkspaceMessage('issued');
+        proofState('Proof verified in the browser and finalized on zkVerify Volta.');
+      }
       showNetworkJob();
     }
     if (networkJob && !networkTerminal.has(networkJob.status)) element('network-state').textContent += '\nUse Check status to continue later.';
@@ -404,6 +435,7 @@ element('network-refresh').addEventListener('click', () => runNetwork('status'))
 function updateVerify() { element('verify-proof').disabled = !artifactsAvailable || !uploadedBundle || Boolean(running); }
 function clearReview() {
   reviewedBundle = undefined;
+  setExplorer('review-explorer');
   clearWorkspaceMessage('reviewed');
   element('review-results').hidden = true;
   element('review-caption').textContent = 'Upload and verify a proof to see what it establishes.';
@@ -494,10 +526,30 @@ element('verify-form').addEventListener('submit', async (event) => {
       element('review-source').textContent = origin;
       reviewedBundle = bundle;
       element('review-results').hidden = false;
+      void checkReviewReceipt(bundle, attempt);
     }
   } catch (error) { if (bundle === uploadedBundle && attempt === reviewRevision) element('verify-state').textContent = error.message; }
   finally { updateVerify(); proofState(proofBundle ? 'Verified locally. Download the bundle to share the public summary and proof.' : ''); }
 });
+
+async function checkReviewReceipt(bundle, attempt) {
+  const output = element('review-chain');
+  if (!bundle.zkverifyReceipt) {
+    output.textContent = 'This proof has no attached transaction receipt.';
+    return;
+  }
+  output.textContent = 'Checking whether the receipt matches this proof.';
+  try {
+    const result = await networkRequest({ action: 'check-receipt', bundle: proofForServer(bundle) });
+    if (attempt !== reviewRevision || bundle !== reviewedBundle) return;
+    if (result.status === 'finalized') {
+      output.textContent = 'The finalized Volta receipt matches this exact proof.';
+      setExplorer('review-explorer', result.receipt.txHash);
+    } else output.textContent = 'Gapmark could not confirm the receipt on this deployment. The browser proof result is shown above.';
+  } catch {
+    if (attempt === reviewRevision && bundle === reviewedBundle) output.textContent = 'Receipt check unavailable. The browser proof result is shown above.';
+  }
+}
 
 const proofAssets = ['/zk/uptime.wasm', '/zk/uptime.zkey', '/zk/verification_key.json', '/zk/snarkjs.min.js', '/proof-worker.js'];
 const fetchFresh = (url, init) => fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000), ...init });

@@ -53,9 +53,10 @@ export const workbench = `
           <section class="timeline-panel"><h3>Check timeline</h3><div id="timeline" class="timeline" aria-label="Monitoring intervals"></div><p id="slot-detail" class="note" aria-live="polite">Select a check to see its time and status.</p></section>
           <div class="proof-controls"><h3>Report proof</h3><div class="actions"><button type="button" class="primary" id="generate" disabled>Generate proof</button><button type="button" id="download-proof" hidden>Download proof JSON</button><button type="button" id="try-verify" hidden>Verify this proof</button></div><p id="proof-state" class="note" role="status"></p><button type="button" class="text-button" id="retry-proof-assets" hidden>Recheck proof files</button></div>
           <section id="zkverify-controls" class="network-guide" hidden aria-label="zkVerify testnet">
+            <h3>On-chain verification</h3>
             <p id="network-description" class="note"></p>
             <div class="actions"><button type="button" id="network-submit">Submit to zkVerify testnet</button><button type="button" id="network-refresh" hidden>Check transaction status</button></div>
-            <p id="network-state" class="note" role="status"></p>
+            <p id="network-state" class="note" role="status"></p><a id="network-explorer" class="workspace-inline" target="_blank" rel="noopener noreferrer" hidden>Open transaction on Volta</a>
           </section>
         </div>
       </article>
@@ -79,6 +80,7 @@ export const workbench = `
           <div><strong>Uptime result</strong><p id="review-verdict"></p></div>
           <div><strong>Your agreement</strong><p id="review-terms"></p></div>
           <div><strong>Data source</strong><p id="review-source"></p></div>
+          <div><strong>zkVerify testnet</strong><p id="review-chain" role="status"></p><a id="review-explorer" class="workspace-inline" target="_blank" rel="noopener noreferrer" hidden>Open transaction on Volta</a></div>
         </div>
       </article>
     </section>

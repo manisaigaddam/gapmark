@@ -11,6 +11,6 @@ export function Header({ active }) {
 
 export function Footer() {
   return <footer className="site-footer page-width"><span>Gapmark</span><div>
-    <a href="/api/agent">Agent API</a><a href="/api/agent/openapi">OpenAPI</a><a href="https://docs.zkverify.io/handbook/quickstart">zkVerify docs</a>
+    <a href="/api/agent">Agent API</a><a href="/api/agent-games">Agent Games endpoint</a><a href="/api/agent/openapi">OpenAPI</a><a href="https://docs.zkverify.io/handbook/quickstart">zkVerify docs</a>
   </div></footer>;
 }

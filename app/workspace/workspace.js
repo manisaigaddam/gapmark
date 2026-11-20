@@ -105,7 +105,7 @@ export default function Workspace({ requestedReport }) {
     <a href="/create">Create a proof in your browser</a>
   </section>;
   if (!account.user) return <section className="account-panel">
-    <h2>Sign in with email</h2><p>{requestedReport ? 'Sign in with the email this report was shared with.' : 'We’ll send a one-time code to open your report workspace.'}</p>
+    <h2>Open your workspace</h2><p>{requestedReport ? 'Use the email address that received access to this report.' : 'Enter your email and we’ll send a one-time code. Your first successful sign-in creates your account.'}</p>
     {!pendingEmail ? <form onSubmit={startEmail}>
       <label>Email address<input name="email" type="email" autoComplete="email" maxLength={254} required /></label>
       <button className="cta dark" disabled={busy}>Send sign-in code</button>

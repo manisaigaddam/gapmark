@@ -1,4 +1,5 @@
 import DemoWindow from './components/demo-window.js';
+import ProofJourney from './components/proof-journey.js';
 import { Footer, Header } from './components/chrome.js';
 
 export default function Page() {
@@ -8,35 +9,29 @@ export default function Page() {
       <section className="landing-hero">
         <div className="page-width hero-layout">
           <div className="landing-copy">
-            <p className="folio">UPTIME EVIDENCE FOR SHARED SERVICES</p>
-            <h1>Put your uptime<br /> <em>on the record.</em></h1>
-            <p>Turn a monitoring export into a report your customer can verify. Show outages, missing checks, and exactly which target you measured against.</p>
+            <p className="folio">VERIFIABLE UPTIME REPORTS</p>
+            <h1>Give your uptime report <em>a receipt.</em></h1>
+            <p>Check an uptime report from a CSV. Prove the calculation, publish a verification on zkVerify, and hand your customer one file they can check.</p>
             <div className="landing-actions"><a className="cta lime" href="/create">Create a report</a><a className="cta outline" href="/review">Verify a proof</a></div>
           </div>
           <DemoWindow />
         </div>
       </section>
-      <section className="page-width evidence-story" aria-labelledby="journey">
-        <div className="story-title"><p className="folio">HOW IT WORKS</p><h2 id="journey">From scheduled checks to a verifiable report.</h2></div>
-        <div className="story-steps">
-          <article className="scroll-reveal"><span className="story-mark mark-log" aria-hidden="true"><i /><i /><i /><i /></span><div><h3>Read the monitoring window</h3><p>Bring a CSV and set the service, cadence, and target from your agreement. Every expected check becomes an up, down, or missing slot.</p></div></article>
-          <article className="scroll-reveal"><span className="story-mark mark-proof" aria-hidden="true"><i /><i /><i /></span><div><h3>Generate and share the proof</h3><p>The browser calculates the result and generates a Groth16 proof. Download the JSON or add it to your workspace and share it with a reviewer.</p></div></article>
-          <article className="scroll-reveal"><span className="story-mark mark-match" aria-hidden="true"><i /><i /></span><div><h3>Check the proof and the terms</h3><p>Review the calculation against the circuit key, compare the report terms with your agreement, and check the monitor signature when a trusted key is available.</p></div></article>
-        </div>
-      </section>
+      <ProofJourney />
       <section className="handover-band">
         <div className="page-width handover-grid">
           <h2>One workspace for both sides of a service agreement.</h2>
-          <article className="scroll-reveal"><h3>Issue reports</h3><p>Keep your proof history, grant access by email, and revoke access to the online copy when needed.</p><a href="/create">Create a report</a></article>
-          <article className="scroll-reveal"><h3>Review evidence</h3><p>Open a shared report or bring a proof file. Save a verified copy to your own history.</p><a href="/workspace">Open workspace</a></article>
+          <article className="scroll-reveal"><h3>Issue reports</h3><p>Save proofs and their zkVerify receipts. Grant a reviewer access by email and revoke access to the online copy when needed.</p><a href="/create">Create a report</a></article>
+          <article className="scroll-reveal"><h3>Review evidence</h3><p>Check a shared report or upload its proof JSON. Compare the target and reporting window, then save a copy to your own history.</p><a href="/workspace">Open workspace</a></article>
         </div>
       </section>
       <section className="page-width proof-story" aria-labelledby="proof-story-title">
-        <div><p className="folio">THE PROOF FILE</p><h2 id="proof-story-title">What zkVerify adds.</h2></div>
+        <div><h2 id="proof-story-title">What you can check.</h2></div>
         <div className="proof-explain scroll-reveal">
-          <article><h3>Verify in the browser</h3><p>The JSON carries a proof and public inputs such as the window, counts, target, and a commitment. Gapmark verifies it against the circuit key when you generate a proof or select Verify proof.</p></article>
-          <article><h3>Publish a verification transaction</h3><p>Submit to zkVerify testnet through Kurier to get a public transaction hash after finalization. Reviewers can also check a downloaded proof whenever they have the matching key.</p></article>
-          <p className="proof-limit">The proof checks the calculation. The accuracy of the source observations depends on the monitor and how its data was collected.</p>
+          <article><h3>Can I check the proof without publishing?</h3><p>Yes. JSON is the file format. Inside it are the proof and public values such as the window, counts, and target. The browser can verify those values against the Gapmark circuit key.</p></article>
+          <article><h3>What does zkVerify add?</h3><p>Volta is zkVerify’s testnet. When the network finalizes the verification transaction, Gapmark keeps its hash with the proof. A reviewer can open that transaction without an account.</p></article>
+          <article><h3>Do I need an account?</h3><p>You can create, verify, and submit a proof without signing in. Enter your email in Workspace to save or share reports. The first successful one-time code creates your account.</p></article>
+          <p className="proof-limit">Proofs check the calculation from the supplied records. The accuracy of those records depends on the monitor.</p>
         </div>
       </section>
     </main>
