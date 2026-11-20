@@ -1,0 +1,27 @@
+{
+  "name": "gapmark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "dev": "next dev --webpack --hostname 127.0.0.1",
+    "build": "next build --webpack",
+    "build:vercel": "node scripts/bootstrap-zk.mjs && npm test && npm run build",
+    "start": "next start",
+    "preview:offline": "node scripts/preview.mjs",
+    "zk:bootstrap": "node scripts/bootstrap-zk.mjs",
+    "zk:pull": "node scripts/pull-zk.mjs",
+    "zk:prepare": "node scripts/prepare-zk.mjs",
+    "zk:submit": "node --env-file-if-exists=.env scripts/kurier.mjs",
+    "zk:sign": "node scripts/sign-checkpoint.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "snarkjs": "0.7.6"
+  },
+  "devDependencies": {"circomlib": "2.0.5"}
+}

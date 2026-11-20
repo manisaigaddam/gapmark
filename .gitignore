@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+build/
+private/
+*.ptau
+*.wtns
+*.pem

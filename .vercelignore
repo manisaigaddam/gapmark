@@ -1,0 +1,10 @@
+.env*
+.git
+.next
+.vercel
+node_modules
+build
+private
+*.ptau
+*.wtns
+*.pem
